@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shopping Cart</title>
+    <style>
+      :root {
+        --bg: #f5f5f4;
+        --panel: #ffffff;
+        --panel-soft: #fafaf9;
+        --border: #e7e5e4;
+        --text: #1c1917;
+        --muted: #57534e;
+        --accent: #111827;
+        --accent-soft: #e5e7eb;
+        --shadow: 0 1px 2px rgba(28, 25, 23, 0.05);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .container {
+        max-width: 980px;
+        margin: 52px auto;
+        padding: 0 20px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 3vw, 2.6rem);
+        letter-spacing: -0.045em;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .icon-link {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--text);
+        text-decoration: none;
+        font-size: 22px;
+        box-shadow: var(--shadow);
+      }
+
+      .badge {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: white;
+        font-size: 11px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .back {
+        text-decoration: none;
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 22px;
+        box-shadow: var(--shadow);
+      }
+
+      .list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .item {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 16px 18px;
+        background: var(--panel-soft);
+      }
+
+      .item strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      button {
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 9px 14px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      button.secondary {
+        background: #6b7280;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <h1>Shopping Cart</h1>
+        <div class="header-actions">
+          <a class="icon-link" href="orders.html" aria-label="Orders">
+            🧾
+            <span class="badge" id="orders-badge">0</span>
+          </a>
+          <a class="back" href="index.html">← Back</a>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div id="cart" class="list"></div>
+        <div class="row">
+          <strong>Total:</strong>
+          <span id="total">$0.00</span>
+        </div>
+        <div class="row">
+          <button id="checkout-btn">Checkout</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function money(value) {
+        return "$" + Number(value).toFixed(2);
+      }
+
+      async function fetchJson(url, options = {}) {
+        const response = await fetch(url, {
+          headers: { "Content-Type": "application/json" },
+          ...options,
+        });
+        const type = response.headers.get("content-type") || "";
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || "Request failed");
+        }
+        if (type.includes("application/json")) return response.json();
+        const text = await response.text();
+        return text ? text : null;
+      }
+
+      async function loadOrdersBadge() {
+        try {
+          const orders = await fetchJson("/api/orders");
+          document.getElementById("orders-badge").textContent = orders.length;
+        } catch (error) {
+          console.error("Unable to load order badge", error);
+        }
+      }
+
+      async function loadCart() {
+        const cart = await fetchJson("/api/cart");
+        const total = cart.reduce(
+          (sum, item) => sum + item.quantity * item.unitPrice,
+          0,
+        );
+        document.getElementById("total").textContent = money(total);
+
+        const cartEl = document.getElementById("cart");
+        cartEl.innerHTML = cart.length
+          ? cart
+              .map(
+                (item) => `
+            <div class="item">
+              <strong>${item.productName}</strong><br>
+              Qty: ${item.quantity} x ${money(item.unitPrice)} = ${money(item.lineTotal)}
+              <div class="row">
+                <button class="secondary remove-btn" data-id="${item.productId}">Remove</button>
+                <button class="add-btn" data-id="${item.productId}">+1</button>
+              </div>
+            </div>
+          `,
+              )
+              .join("")
+          : "<p>Cart is empty</p>";
+      }
+
+      document.addEventListener("click", async (event) => {
+        const target = event.target.closest(".remove-btn");
+        if (target) {
+          const productId = Number(target.dataset.id);
+          await fetchJson(`/api/cart/remove/${productId}`, { method: "POST" });
+          loadCart();
+          return;
+        }
+
+        const addBtn = event.target.closest(".add-btn");
+        if (addBtn) {
+          const productId = Number(addBtn.dataset.id);
+          try {
+            await fetchJson("/api/cart/add", {
+              method: "POST",
+              body: JSON.stringify({ productId, quantity: 1 }),
+            });
+            loadCart();
+          } catch (error) {
+            alert(error.message || "Unable to add");
+          }
+        }
+
+        if (event.target.id === "checkout-btn") {
+          try {
+            await fetchJson("/api/checkout", { method: "POST" });
+            alert("Order created successfully");
+            await loadOrdersBadge();
+            loadCart();
+          } catch (error) {
+            alert(error.message || "Checkout failed");
+          }
+        }
+      });
+
+      loadOrdersBadge();
+      loadCart();
+    </script>
+  </body>
+</html>

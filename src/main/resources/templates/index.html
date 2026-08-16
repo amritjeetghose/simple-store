@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simple Store</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: #f5f5f5;
+        color: #222;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 24px auto;
+        padding: 0 16px;
+      }
+      h1,
+      h2,
+      h3 {
+        margin-top: 0;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr 1fr 1.2fr;
+        gap: 16px;
+      }
+      .panel {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      }
+      .product-list,
+      .cart-list,
+      .inventory-list,
+      .order-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .item {
+        border: 1px solid #eee;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: #fafafa;
+      }
+      button {
+        background: #1d4ed8;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #6b7280;
+      }
+      button.danger {
+        background: #b91c1c;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 8px;
+        margin-top: 6px;
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Simple Store</h1>
+
+      <div class="grid">
+        <section class="panel">
+          <h2>Catalog</h2>
+          <div id="catalog" class="product-list"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Shopping Cart</h2>
+          <div id="cart" class="cart-list"></div>
+          <div class="row">
+            <strong>Total:</strong>
+            <span id="cart-total">$0.00</span>
+          </div>
+          <div class="row">
+            <button id="checkout-btn">Checkout</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Inventory</h2>
+          <div id="inventory" class="inventory-list"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Order Engine</h2>
+          <div id="orders" class="order-list"></div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      const catalogEl = document.getElementById("catalog");
+      const cartEl = document.getElementById("cart");
+      const inventoryEl = document.getElementById("inventory");
+      const ordersEl = document.getElementById("orders");
+      const totalEl = document.getElementById("cart-total");
+
+      async function fetchJson(url, options = {}) {
+        const response = await fetch(url, {
+          headers: { "Content-Type": "application/json" },
+          ...options,
+        });
+        return response.json();
+      }
+
+      function money(value) {
+        return "$" + Number(value).toFixed(2);
+      }
+
+      async function loadCatalog() {
+        const catalog = await fetchJson("/api/catalog");
+        catalogEl.innerHTML = catalog
+          .map(
+            (product) => `
+                <div class="item">
+                    <strong>${product.name}</strong><br>
+                    Price: ${money(product.price)}<br>
+                    Stock: ${product.stock}
+                    <div class="row">
+                        <button data-product-id="${product.id}" data-action="add">Add</button>
+                    </div>
+                </div>
+            `,
+          )
+          .join("");
+      }
+
+      async function loadCart() {
+        const cart = await fetchJson("/api/cart");
+        const total = cart.reduce(
+          (sum, item) => sum + item.quantity * item.unitPrice,
+          0,
+        );
+        totalEl.textContent = money(total);
+
+        cartEl.innerHTML = cart.length
+          ? cart
+              .map(
+                (item) => `
+                <div class="item">
+                    <strong>${item.productName}</strong><br>
+                    Qty: ${item.quantity} x ${money(item.unitPrice)} = ${money(item.lineTotal)}
+                    <div class="row">
+                        <button class="secondary" data-product-id="${item.productId}" data-action="remove">Remove</button>
+                    </div>
+                </div>
+            `,
+              )
+              .join("")
+          : "<p>Cart is empty</p>";
+      }
+
+      async function loadInventory() {
+        const inventory = await fetchJson("/api/inventory");
+        const entries = Object.entries(inventory);
+        inventoryEl.innerHTML = entries.length
+          ? entries
+              .map(
+                ([id, stock]) => `
+                <div class="item">
+                    <strong>Product ${id}</strong><br>
+                    Available: ${stock}
+                </div>
+            `,
+              )
+              .join("")
+          : "<p>No inventory</p>";
+      }
+
+      async function loadOrders() {
+        const orders = await fetchJson("/api/orders");
+        ordersEl.innerHTML = orders.length
+          ? orders
+              .map(
+                (order) => `
+                <div class="item">
+                    <strong>Order #${order.id}</strong><br>
+                    Status: ${order.status}<br>
+                    Total: ${money(order.total)}
+                </div>
+            `,
+              )
+              .join("")
+          : "<p>No orders yet</p>";
+      }
+
+      async function addToCart(productId) {
+        await fetchJson("/api/cart/add", {
+          method: "POST",
+          body: JSON.stringify({ productId, quantity: 1 }),
+        });
+        await Promise.all([loadCart(), loadCatalog(), loadInventory()]);
+      }
+
+      async function removeFromCart(productId) {
+        await fetchJson(`/api/cart/remove/${productId}`, { method: "POST" });
+        await Promise.all([loadCart(), loadCatalog(), loadInventory()]);
+      }
+
+      async function checkout() {
+        const response = await fetch("/api/checkout", { method: "POST" });
+        const result = await response.json();
+        if (!response.ok) {
+          alert(result.message || "Checkout failed");
+          return;
+        }
+        alert("Order created successfully");
+        await Promise.all([
+          loadCart(),
+          loadCatalog(),
+          loadInventory(),
+          loadOrders(),
+        ]);
+      }
+
+      document.addEventListener("click", async (event) => {
+        const button = event.target.closest("button");
+        if (!button) return;
+
+        const productId = Number(button.dataset.productId);
+        const action = button.dataset.action;
+
+        if (action === "add") {
+          await addToCart(productId);
+        }
+
+        if (action === "remove") {
+          await removeFromCart(productId);
+        }
+      });
+
+      document
+        .getElementById("checkout-btn")
+        .addEventListener("click", checkout);
+
+      async function refreshAll() {
+        await Promise.all([
+          loadCatalog(),
+          loadCart(),
+          loadInventory(),
+          loadOrders(),
+        ]);
+      }
+
+      refreshAll();
+    </script>
+  </body>
+</html>

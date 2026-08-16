@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Order Engine</title>
+    <style>
+      :root {
+        --bg: #f5f5f4;
+        --panel: #ffffff;
+        --panel-soft: #fafaf9;
+        --border: #e7e5e4;
+        --text: #1c1917;
+        --muted: #57534e;
+        --accent: #111827;
+        --accent-soft: #e5e7eb;
+        --shadow: 0 1px 2px rgba(28, 25, 23, 0.05);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .container {
+        max-width: 980px;
+        margin: 52px auto;
+        padding: 0 20px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 3vw, 2.6rem);
+        letter-spacing: -0.045em;
+      }
+
+      .back {
+        text-decoration: none;
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 22px;
+        box-shadow: var(--shadow);
+      }
+
+      .list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .item {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 16px 18px;
+        background: var(--panel-soft);
+      }
+
+      .item strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <h1>Order Engine</h1>
+        <a class="back" href="index.html">← Back</a>
+      </div>
+
+      <div class="panel">
+        <div id="orders" class="list"></div>
+      </div>
+    </div>
+
+    <script>
+      function money(value) {
+        return "$" + Number(value).toFixed(2);
+      }
+
+      async function fetchJson(url) {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error("Request failed");
+        }
+        return response.json();
+      }
+
+      async function loadOrders() {
+        const orders = await fetchJson("/api/orders");
+        const ordersEl = document.getElementById("orders");
+        ordersEl.innerHTML = orders.length
+          ? orders
+              .map(
+                (order) => `
+            <div class="item">
+              <strong>Order #${order.id}</strong><br>
+              Status: ${order.status}<br>
+              Total: ${money(order.total)}
+            </div>
+          `,
+              )
+              .join("")
+          : "<p>No orders yet</p>";
+      }
+
+      loadOrders();
+    </script>
+  </body>
+</html>

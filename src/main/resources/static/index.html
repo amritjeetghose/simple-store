@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Store Dashboard</title>
+    <style>
+      :root {
+        --bg: #f5f5f4;
+        --panel: #ffffff;
+        --panel-soft: #fafaf9;
+        --border: #e7e5e4;
+        --text: #1c1917;
+        --muted: #57534e;
+        --accent: #111827;
+        --accent-soft: #e5e7eb;
+        --shadow: 0 1px 2px rgba(28, 25, 23, 0.05);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .container {
+        max-width: 980px;
+        margin: 52px auto;
+        padding: 0 20px;
+      }
+
+      h1 {
+        margin: 0 0 24px;
+        font-size: clamp(2rem, 3vw, 2.6rem);
+        letter-spacing: -0.045em;
+        font-weight: 700;
+      }
+
+      .dashboard {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+        gap: 18px;
+      }
+
+      .card {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        min-height: 170px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        border-radius: 18px;
+        color: var(--text);
+        text-decoration: none;
+        box-shadow: var(--shadow);
+        transition:
+          transform 0.15s ease,
+          border-color 0.15s ease;
+      }
+
+      .card:hover {
+        border-color: #d6d3d1;
+        transform: translateY(-1px);
+      }
+
+      .icon {
+        font-size: 42px;
+        line-height: 1;
+      }
+
+      .label {
+        font-size: 1.15rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      .count {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        min-width: 28px;
+        height: 28px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: white;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.76rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Store Dashboard</h1>
+
+      <div class="dashboard">
+        <a class="card" href="catalog.html">
+          <span class="icon">📦</span>
+          <span class="label">Catalog</span>
+          <span class="count" id="catalog-count">0</span>
+        </a>
+
+        <a class="card" href="cart.html">
+          <span class="icon">🛒</span>
+          <span class="label">Cart</span>
+          <span class="count" id="cart-count">0</span>
+        </a>
+
+        <a class="card" href="inventory.html">
+          <span class="icon">📋</span>
+          <span class="label">Inventory</span>
+          <span class="count" id="inventory-count">0</span>
+        </a>
+
+        <a class="card" href="orders.html">
+          <span class="icon">🧾</span>
+          <span class="label">Orders</span>
+          <span class="count" id="orders-count">0</span>
+        </a>
+      </div>
+    </div>
+
+    <script>
+      async function fetchJson(url) {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error("Request failed");
+        }
+        return response.json();
+      }
+
+      async function loadCounts() {
+        try {
+          const [catalog, cart, inventory, orders] = await Promise.all([
+            fetchJson("/api/catalog"),
+            fetchJson("/api/cart"),
+            fetchJson("/api/inventory"),
+            fetchJson("/api/orders"),
+          ]);
+
+          document.getElementById("catalog-count").textContent = catalog.length;
+          const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+          document.getElementById("cart-count").textContent = cartCount;
+          const totalInventory = Object.values(inventory).reduce(
+            (sum, value) => sum + Number(value),
+            0,
+          );
+          document.getElementById("inventory-count").textContent =
+            totalInventory;
+          document.getElementById("orders-count").textContent = orders.length;
+        } catch (error) {
+          console.error("Unable to load dashboard counts", error);
+        }
+      }
+
+      loadCounts();
+    </script>
+  </body>
+</html>
