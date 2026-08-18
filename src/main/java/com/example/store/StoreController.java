@@ -9,7 +9,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClientException;
 
 @RestController
 @RequestMapping("/api")
@@ -96,6 +99,25 @@ public class StoreController {
             return ResponseEntity.ok(order);
         } catch (IllegalStateException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/weather")
+    public ResponseEntity<?> getWeather(@RequestParam String ip) {
+        try {
+            if (ip == null || ip.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "IP parameter is required"));
+            }
+
+            RestTemplate restTemplate = new RestTemplate();
+            String remoteUrl = "http://" + ip.trim() + "/api/weather";
+            
+            Map<?, ?> weatherData = restTemplate.getForObject(remoteUrl, Map.class);
+            return ResponseEntity.ok(weatherData);
+        } catch (RestClientException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Failed to fetch weather data from " + ip + ": " + ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", "An error occurred: " + ex.getMessage()));
         }
     }
 }

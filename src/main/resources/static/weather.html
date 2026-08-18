@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weather</title>
+    <style>
+      :root {
+        --bg: #f5f5f4;
+        --panel: #ffffff;
+        --panel-soft: #fafaf9;
+        --border: #e7e5e4;
+        --text: #1c1917;
+        --muted: #57534e;
+        --accent: #111827;
+        --accent-soft: #e5e7eb;
+        --shadow: 0 1px 2px rgba(28, 25, 23, 0.05);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .container {
+        max-width: 600px;
+        margin: 52px auto;
+        padding: 0 20px;
+      }
+
+      h1 {
+        margin: 0 0 24px;
+        font-size: clamp(2rem, 3vw, 2.6rem);
+        letter-spacing: -0.045em;
+        font-weight: 700;
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-bottom: 24px;
+        padding: 8px 12px;
+        background: var(--accent);
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: opacity 0.15s ease;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      .weather-card {
+        border: 1px solid var(--border);
+        background: var(--panel);
+        border-radius: 18px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 1rem;
+        font-family: inherit;
+        transition: border-color 0.15s ease;
+      }
+
+      input[type="text"]:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      button {
+        background: var(--accent);
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.15s ease;
+      }
+
+      button:hover {
+        opacity: 0.9;
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .response-container {
+        margin-top: 24px;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--panel-soft);
+        min-height: 100px;
+        display: none;
+      }
+
+      .response-container.active {
+        display: block;
+      }
+
+      .response-title {
+        font-weight: 700;
+        margin-bottom: 12px;
+        color: var(--accent);
+      }
+
+      .response-content {
+        font-family: "Monaco", "Courier New", monospace;
+        font-size: 0.9rem;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+      }
+
+      .loading {
+        display: none;
+        text-align: center;
+        margin-top: 16px;
+      }
+
+      .loading.active {
+        display: block;
+      }
+
+      .error {
+        color: #dc2626;
+        padding: 12px;
+        background: #fee2e2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        margin-top: 16px;
+        display: none;
+      }
+
+      .error.active {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <a class="back-link" href="index.html">← Back to Dashboard</a>
+
+      <h1>🌤️ Weather</h1>
+
+      <div class="weather-card">
+        <div class="form-group">
+          <label for="ip-input">Enter Destination IP:</label>
+          <input
+            type="text"
+            id="ip-input"
+            placeholder="e.g., 192.168.1.1 or example.com"
+          />
+        </div>
+
+        <button id="fetch-weather-btn">Get Weather</button>
+
+        <div class="loading" id="loading">
+          <p>Loading weather data...</p>
+        </div>
+
+        <div class="error" id="error-msg"></div>
+
+        <div class="response-container" id="response-container">
+          <div class="response-title">Weather Response:</div>
+          <div class="response-content" id="response-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const ipInput = document.getElementById("ip-input");
+      const fetchButton = document.getElementById("fetch-weather-btn");
+      const loadingDiv = document.getElementById("loading");
+      const errorDiv = document.getElementById("error-msg");
+      const responseContainer = document.getElementById("response-container");
+      const responseContent = document.getElementById("response-content");
+
+      fetchButton.addEventListener("click", async function () {
+        const ip = ipInput.value.trim();
+
+        // Clear previous state
+        errorDiv.classList.remove("active");
+        responseContainer.classList.remove("active");
+        loadingDiv.classList.remove("active");
+
+        // Validate input
+        if (!ip) {
+          showError("Please enter a valid IP address or hostname");
+          return;
+        }
+
+        // Show loading state
+        loadingDiv.classList.add("active");
+
+        try {
+          // Construct the URL
+          const url = `http://${ip}/api/weather`;
+
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            throw new Error(
+              `HTTP Error: ${response.status} ${response.statusText}`,
+            );
+          }
+
+          const data = await response.text();
+
+          // Display response
+          responseContent.textContent = data;
+          responseContainer.classList.add("active");
+        } catch (error) {
+          showError(`Failed to fetch weather data: ${error.message}`);
+        } finally {
+          loadingDiv.classList.remove("active");
+        }
+      });
+
+      // Allow Enter key to trigger fetch
+      ipInput.addEventListener("keypress", function (event) {
+        if (event.key === "Enter") {
+          fetchButton.click();
+        }
+      });
+
+      function showError(message) {
+        errorDiv.textContent = message;
+        errorDiv.classList.add("active");
+      }
+    </script>
+  </body>
+</html>
