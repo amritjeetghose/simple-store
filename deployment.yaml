@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-store
+  labels:
+    app: simple-store
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simple-store
+  template:
+    metadata:
+      labels:
+        app: simple-store
+    spec:
+      containers:
+        - name: simple-store
+          image: simplestoreregistry.azurecr.io/simplestore/simple-store:latest #change as per your image name
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: simple-store
+  labels:
+    app: simple-store
+spec:
+  selector:
+    app: simple-store
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer
